@@ -1,0 +1,59 @@
+name: build
+
+on:
+   workflow_dispatch:
+#  push:
+#    paths:
+#      - 'kern/**'
+#      - '.github/workflows/build.yml'
+#  pull_request:
+#    paths:
+#      - 'kern/**'
+#      - '.github/workflows/build.yml'
+#  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - android12-5.10
+          - android13-5.10
+          - android13-5.15
+          - android14-5.15
+          - android14-6.1
+          - android15-6.6
+          - android16-6.12
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch deps
+        run: |
+          chmod +x kern/scripts/fetch-deps.sh
+          cd kern
+          ./scripts/fetch-deps.sh
+
+      - name: Build ${{ matrix.target }}
+        run: |
+          cd kern
+          ./scripts/build-ddkk.sh ${{ matrix.target }}
+      - name: Create Release and Upload Kernel Modules
+        uses: softprops/action-gh-release@v3
+        with:
+    # 可选：自定义 Release 名称，通常使用 tag 名称
+          name: ${{ github.ref_name }}
+         # 必须：指定要上传的文件路径 # 可选：是否生成发布说明# 可选：如果没匹配到文件是否报错，建议设为 false 防止因通配符未匹配导致流程中断
+          files: |
+            kern/out/${{ matrix.target }}/*.ko 
+            
+            generate_release_notes: true
+                  fail_on_unmatched_files: false
+            env:
+             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Upload ${{ matrix.target }} artifacts
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: kern-${{ matrix.target }}
+#          path: kern/out/${{ matrix.target }}/*.ko
